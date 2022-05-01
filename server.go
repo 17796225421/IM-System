@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -19,6 +20,7 @@ type Server struct {
 	Message chan string
 }
 
+// 构造
 func NewServer(ip string, port int) *Server {
 	server := &Server{
 		Ip:        ip,
@@ -29,7 +31,7 @@ func NewServer(ip string, port int) *Server {
 	return server
 }
 
-// 监听Message广播消息channel的goroutine，一旦有消息就转发给所有在线的User
+// 监听server channel，广播给所有user
 func (this *Server) ListenMessage() {
 	for {
 		msg := <-this.Message
@@ -57,6 +59,8 @@ func (this *Server) Handler(conn net.Conn) {
 
 	user.Online()
 
+	isLive := make(chan bool)
+
 	// 接收客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -71,18 +75,32 @@ func (this *Server) Handler(conn net.Conn) {
 				fmt.Println("Conn.Read err:", err)
 			}
 
-			// 提取用户消息，取出\n
+			// 提取用户消息，去除\n
 			msg := string(buf[:n-1])
 
 			// 将得到的消息广播
 			user.DoMessage(msg)
+
+			isLive <- true
 		}
 	}()
 
-	// 当前handler阻塞
-	select {}
+	for {
+		select {
+		// 用一个case来从channel取出数据，一旦取出数据，就说明活跃，本次select就结束，开始下一次for，也就是重置计时器
+		case <-isLive:
+		case <-time.After(time.Second * 10):
+			// 一个case来每10s触发一次超时踢出
+			user.SendMsg("长时间不活跃，你被踢了")
+
+			close(user.C)
+			conn.Close()
+			return
+		}
+	}
 }
 
+// 启动
 func (this *Server) Start() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", this.Ip, this.Port))
 	if err != nil {
@@ -92,7 +110,7 @@ func (this *Server) Start() {
 
 	defer listener.Close()
 
-	// 启动监听Message的goroutine
+	// 启动server的channel
 	go this.ListenMessage()
 
 	for {
@@ -102,6 +120,7 @@ func (this *Server) Start() {
 			continue
 		}
 
+		// 启动server对每个user的监听
 		go this.Handler(conn)
 	}
 }
