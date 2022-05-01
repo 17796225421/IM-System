@@ -68,6 +68,47 @@ func (client *Client) memu() bool {
 	}
 }
 
+func (client *Client) SelectUsers() {
+	sendMsg := "who\n"
+	_, err := client.conn.Write([]byte(sendMsg))
+	if err != nil {
+		fmt.Println("conn.Write err", err)
+		return
+	}
+}
+
+// 私聊，想组装who\n发送给服务器查询所有在线用户，再死循环组装to|zhouzihong|nihao\n发送给服务器
+func (client *Client) PrivateChat() {
+	var remoteName string
+	var chatMsg string
+
+	client.SelectUsers()
+	fmt.Println(">>>>请输入聊天对象[用户名]，exit退出：")
+	fmt.Scanln(&remoteName)
+
+	for remoteName != "exit" {
+		fmt.Println(">>>>请输入消息内容，exit退出：")
+		fmt.Scanln(&chatMsg)
+
+		for chatMsg != "exit" {
+			if len(chatMsg) != 0 {
+				sendMsg := "to|" + remoteName + "|" + chatMsg + "\n\n"
+				_, err := client.conn.Write([]byte(sendMsg))
+				if err != nil {
+					fmt.Println("conn.Write err:", err)
+					break
+				}
+			}
+			chatMsg = ""
+			fmt.Println(">>>>请输入消息内容，exit退出：")
+			fmt.Scanln(&chatMsg)
+		}
+		client.SelectUsers()
+		fmt.Println(">>>>请输入聊天对象[用户名]，exit退出：")
+		fmt.Scanln(&remoteName)
+	}
+}
+
 // 公聊，死循环接收标准输入，只要不是exit，就发送给服务器
 func (client *Client) PublicChat() {
 	var chatMsg string
@@ -118,7 +159,7 @@ func (client *Client) Run() {
 			break
 		case 2:
 			// 私聊
-			fmt.Println("私聊")
+			client.PrivateChat()
 			break
 		case 3:
 			// 更新用户名
