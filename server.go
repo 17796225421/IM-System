@@ -89,8 +89,8 @@ func (this *Server) Handler(conn net.Conn) {
 		select {
 		// 用一个case来从channel取出数据，一旦取出数据，就说明活跃，本次select就结束，开始下一次for，也就是重置计时器
 		case <-isLive:
-		case <-time.After(time.Second * 10):
-			// 一个case来每10s触发一次超时踢出
+		case <-time.After(time.Second * 120):
+			// 一个case来每120s触发一次超时踢出
 			user.SendMsg("长时间不活跃，你被踢了")
 
 			close(user.C)
