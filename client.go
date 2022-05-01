@@ -68,6 +68,27 @@ func (client *Client) memu() bool {
 	}
 }
 
+// 公聊，死循环接收标准输入，只要不是exit，就发送给服务器
+func (client *Client) PublicChat() {
+	var chatMsg string
+	fmt.Println(">>>>输入聊天内容，exit退出")
+	fmt.Scanln(&chatMsg)
+
+	for chatMsg != "exit" {
+		if len(chatMsg) != 0 {
+			sendMsg := chatMsg + "\n"
+			_, err := client.conn.Write([]byte(sendMsg))
+			if err != nil {
+				fmt.Println("conn.Write err:", err)
+				break
+			}
+		}
+		chatMsg = ""
+		fmt.Println(">>>>输入聊天内容，exit退出")
+		fmt.Scanln(&chatMsg)
+	}
+}
+
 func (client *Client) updateName() bool {
 	// 更新用户名，组装rename|zhouzihong，发送给服务器
 	fmt.Println(">>>>请输入用户名")
@@ -93,7 +114,7 @@ func (client *Client) Run() {
 		switch client.flag {
 		case 1:
 			// 公聊
-			fmt.Println("公聊")
+			client.PublicChat()
 			break
 		case 2:
 			// 私聊
@@ -101,7 +122,6 @@ func (client *Client) Run() {
 			break
 		case 3:
 			// 更新用户名
-			fmt.Println("更新用户名")
 			client.updateName()
 			break
 
